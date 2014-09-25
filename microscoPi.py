@@ -26,8 +26,8 @@ Cam = picamera.PiCamera() #create a camera object for controlling PiCamera
 c = pygame.time.Clock() #create a clock object for timing 
 pygame.init()
 #code.interact(local=locals()) #creates interactive python shell for user inpu
-w = 1800
-h = 1000
+w = 800
+h = 600
 size = (w,h)
 screen = pygame.display.set_mode(size)
 pygame.display.set_caption('Raspberry Pi Camera')
@@ -36,11 +36,47 @@ PREVIEW_TOGGLE = False
 Cam.capture('image.jpg')
 img=pygame.image.load('image.jpg')
 screen.blit(img,(0,0))
-c.tick(0.5) #ensure only three images per second max
+c.tick(20) #ensure only three images per second max
 Cam.capture('image.jpg')
 print 'Image Captured'
 
 #screen = pygame.display.set_mode(size)
+
+# Initialize the joysticks
+pygame.joystick.init()
+# Constants representing the various buttons
+#TODO Complete list, what about analog sensors?
+DS_SELECT = 0
+DS_ANALOG_LEFT = 1
+DS_ANALOG_RIGHT = 2
+DS_START = 3
+DS_NORTH = 4
+DS_WEST = 5
+DS_SOUTH = 6
+DS_EAST = 7
+DS_TRIGGER_LEFT_2 = 8
+DS_TRIGGER_RIGHT_2 = 9
+DS_TRIGGER_LEFT_1 = 10
+DS_TRIGGER_RIGHT_1 = 11
+DS_TRIANGLE = 12
+DS_CIRCLE = 13
+DS_CROSS = 14
+DS_SQUARE = 15
+DS_PS = 16
+
+
+# Ensure there are connected joysticks and init them
+joystick_count = pygame.joystick.get_count()
+for j in range(joystick_count):
+    print 'Init joystick %s' % j
+    joystick = pygame.joystick.Joystick(j)
+    joystick.init()
+
+def capture_image():
+    Cam.capture('image.jpg')
+    img=pygame.image.load('image.jpg')
+    screen.blit(img, (0,0))
+    print 'Image captured'
 
 while True:
     for event in pygame.event.get():
@@ -51,30 +87,34 @@ while True:
             if event.key == K_q:
                 pygame.quit()
                 sys.exit()
-            if event.key == K_p:   
+
 	    	# if press 'p' on keyboard then toggle between
-		# preview start and preview stop
+            # preview start and preview stop
+            if event.key == K_p:   
                 if PREVIEW_TOGGLE == False:
                     Cam.start_preview()
                     PREVIEW_TOGGLE = True
                 elif PREVIEW_TOGGLE == True:
                     Cam.stop_preview()
                     PREVIEW_TOGGLE = False
+
+            # if press 'c' on keybaord then capture image
+            # save to file named image.jpg and display in pygame window 
             if event.key == K_c:    
-		# if press 'c' on keybaord then capture image
-		# save to file named imapge.jpg and display in pygame window 
-                Cam.capture('image.jpg')
-                img=pygame.image.load('image.jpg')
-                screen.blit(img,(0,0))
-                # pygame.display.flip() #update the display
-                c.tick(0.5) #ensure only three images per second max                    
-                Cam.capture('image.jpg')
-		print 'Image Captured'
+                capture_image()
             if event.key == K_i:
                 code.interact(local=locals()) # creates interactive python shell for 
                                               # user to control camera
+        elif event.type == pygame.JOYBUTTONDOWN:
+            print 'JoyButtonDown', event.button
+            if event.button == DS_START:
+                pygame.quit()
+                sys.exit()
+            elif event.button == DS_SQUARE:
+                capture_image()
+
     pygame.display.flip()
-    c.tick(.5)
+    c.tick(20)
 
 #    pygame.display.update()
 #print 'doing stuff'
