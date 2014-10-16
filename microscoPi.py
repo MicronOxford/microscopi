@@ -17,66 +17,103 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import picamera
+from io import BytesIO
 import time
-import code
-import pygame, sys
+import datetime
+import pygame
+import sys
 from pygame.locals import *
 
-Cam = picamera.PiCamera() #create a camera object for controlling PiCamera
-c = pygame.time.Clock() #create a clock object for timing 
+# Import ps3 constants
+from ps3 import *
+
+# Import microscoPi settings
+from settings import *
+
+def now():
+    return datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+
+def toggle_preview(camera):
+    # If there is no current preview, start preview
+    if camera.preview is None:
+        camera.start_preview(
+            window=PREVIEW_LAYOUT,
+            fullscreen=False)
+    # Otherwise, stop preview
+    else:
+        camera.stop_preview()
+
+def capture_image(camera):
+    # Create byte stream to read image into
+    stream = BytesIO()
+
+    # Capture the image into the stream
+    start = time.time()
+    camera.capture(stream, format='jpeg')
+    end = time.time()
+    print 'capture', end - start
+
+    # Return the acquired image stream
+    stream.seek(0)
+    return stream
+
+def display_image(stream):
+    # Seek to the start of the stream ready for reading
+    stream.seek(0)
+    
+    # Load the image into pygame
+    start = time.time()
+    image = pygame.image.load(stream, 'jpeg')
+    end = time.time()
+    print 'pygame load', end - start
+
+    # Get the current screen size of the pygame window to
+    # correctly resize image
+    screen_size = (pygame.display.Info().current_w,
+                   pygame.display.Info().current_h)
+
+    # Resize the image to the pygame window size
+    start = time.time()
+    image = pygame.transform.scale(image.convert(), screen_size)
+    end = time.time()
+    print 'scale', end - start
+
+    # Display the image in the pygame window
+    screen.blit(image, (0,0))
+
+def save_image(stream, name):
+    if stream is not None:
+        open(name, 'wb').write(stream.getvalue())
+    else:
+        print('No image has been captured yet')
+
+# Python interface to Raspberry Pi camera module
+camera = picamera.PiCamera()
+
+# Set the camera resolution to maximum for stills acquisition
+camera.resolution = CAMERA_RESOLUTION
+
 pygame.init()
-#code.interact(local=locals()) #creates interactive python shell for user inpu
-w = 800
-h = 600
-size = (w,h)
-screen = pygame.display.set_mode(size)
+
+screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption('Raspberry Pi Camera')
-PREVIEW_TOGGLE = False
 
-Cam.capture('image.jpg')
-img=pygame.image.load('image.jpg')
-screen.blit(img,(0,0))
-c.tick(20) #ensure only three images per second max
-Cam.capture('image.jpg')
-print 'Image Captured'
-
-#screen = pygame.display.set_mode(size)
+# To conserve resources, cap the framerate
+c = pygame.time.Clock()
+c.tick(MAX_FPS)
 
 # Initialize the joysticks
 pygame.joystick.init()
-# Constants representing the various buttons
-#TODO Complete list, what about analog sensors?
-DS_SELECT = 0
-DS_ANALOG_LEFT = 1
-DS_ANALOG_RIGHT = 2
-DS_START = 3
-DS_NORTH = 4
-DS_WEST = 5
-DS_SOUTH = 6
-DS_EAST = 7
-DS_TRIGGER_LEFT_2 = 8
-DS_TRIGGER_RIGHT_2 = 9
-DS_TRIGGER_LEFT_1 = 10
-DS_TRIGGER_RIGHT_1 = 11
-DS_TRIANGLE = 12
-DS_CIRCLE = 13
-DS_CROSS = 14
-DS_SQUARE = 15
-DS_PS = 16
-
 
 # Ensure there are connected joysticks and init them
 joystick_count = pygame.joystick.get_count()
 for j in range(joystick_count):
-    print 'Init joystick %s' % j
     joystick = pygame.joystick.Joystick(j)
     joystick.init()
 
-def capture_image():
-    Cam.capture('image.jpg')
-    img=pygame.image.load('image.jpg')
-    screen.blit(img, (0,0))
-    print 'Image captured'
+# Global for most recently acquired image stream
+image_stream = None
+timelapsing = False
 
 while True:
     for event in pygame.event.get():
@@ -84,60 +121,50 @@ while True:
             pygame.quit()
             sys.exit()
         elif event.type == KEYDOWN:
+
+            # 'q' keypress - Quit
             if event.key == K_q:
                 pygame.quit()
                 sys.exit()
 
-	    	# if press 'p' on keyboard then toggle between
-            # preview start and preview stop
-            if event.key == K_p:   
-                if PREVIEW_TOGGLE == False:
-                    Cam.start_preview()
-                    PREVIEW_TOGGLE = True
-                elif PREVIEW_TOGGLE == True:
-                    Cam.stop_preview()
-                    PREVIEW_TOGGLE = False
+            # 'p' keypress - Toggle preview on/off
+            elif event.key == K_p:   
+                toggle_preview(camera)
 
-            # if press 'c' on keybaord then capture image
-            # save to file named image.jpg and display in pygame window 
-            if event.key == K_c:    
-                capture_image()
-            if event.key == K_i:
-                code.interact(local=locals()) # creates interactive python shell for 
-                                              # user to control camera
+            # 'c' keypress - Capture image
+            elif event.key == K_c:    
+                image_stream = capture_image(camera)
+                display_image(image_stream)
+
+            # 's' keypress - Save captured image to disk
+            elif event.key == K_s:
+                save_image(image_stream, 'image.jpg')
+
+            # 't' keypress - Toggle timelapse
+            elif event.key == K_t:
+                if not timelapsing:
+                    timelapsing = True
+                    pygame.time.set_timer(USEREVENT + 1, TIMELAPSE_INTERVAL)
+                else:
+                    timelapsing = False
+                    pygame.time.set_timer(USEREVENT + 1, 0)
+
+            # 'i' keypress - Interactive Python Shell
+            elif event.key == K_i:
+                code.interact(local=locals())
+
         elif event.type == pygame.JOYBUTTONDOWN:
             print 'JoyButtonDown', event.button
             if event.button == DS_START:
                 pygame.quit()
                 sys.exit()
             elif event.button == DS_SQUARE:
-                capture_image()
+                capture_image(camera)
+
+        # Timelapse event, captured straight to disk
+        elif event.type == USEREVENT + 1:
+            stream = capture_image(camera)   
+            save_image(stream, 'image-%s.jpg' % now())
 
     pygame.display.flip()
-    c.tick(20)
-
-#    pygame.display.update()
-#print 'doing stuff'
-#testfunction = 'running function complete'
-#def testcamera():
-#    print testfunction
-
-#testcamera 
-
-#Cam.start_preview()
-#sleep(10)
-#Cam.stop_preview()
-#DISPLAYSURF = pygame.display.set_mode((200, 150))
-#pygame.display.set_caption('Raspberry Pi Camera')
-
-#DISPLAYSURF = pygame.display.set_mode((200, 150))
-#pygame.display.set_caption('Raspberry Pi Camera')
-
-#WHITE = (255,255,255)
-#BRACK = (0,0,0)
-#GREEN = ( 0, 255, 0)
-#RED = ( 255, 0, 0)
-
-#DISPLAYSURF.fill(WHITE)
-#pygame.draw.rect(DISPLAYSURF, GREEN, (100, 100, 200, 200))
 
