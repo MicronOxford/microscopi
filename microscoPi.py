@@ -112,7 +112,6 @@ for j in range(joystick_count):
     joystick.init()
 
 # Global for most recently acquired image stream
-image_stream = None
 timelapsing = False
 
 while True:
@@ -134,11 +133,8 @@ while True:
             # 'c' keypress - Capture image
             elif event.key == K_c:    
                 image_stream = capture_image(camera)
-                display_image(image_stream)
-
-            # 's' keypress - Save captured image to disk
-            elif event.key == K_s:
                 save_image(image_stream, 'image.jpg')
+                display_image(image_stream)
 
             # 't' keypress - Toggle timelapse
             elif event.key == K_t:
