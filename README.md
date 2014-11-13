@@ -30,3 +30,7 @@ What do you think is easily feasible out of this and what GUI could be easy
 to make more interactive with the ps3. Eg to change camera modes for
 capture and contract etc. And then display the modes in a control window
 showing settings. Is pygame good for this?
+
+Would be good to write a guide to how to develop the program for
+students. Eg some suggested new functionalities for them to try adding
+in order of difficulty.
