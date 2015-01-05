@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # microscoPi, Raspberry Pi based microscope platform
 # Copyright (C) 2014 Ilan Davis, Mick Phillips & Douglas Russell
 # University of Oxford, Oxford, United Kingdom
@@ -15,10 +16,28 @@
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, write to the Free Software
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+#*******************************************************************************
 
+
+#The camera and two motors are controlled from the keyboard and PS3 controller
+#Keys on the keyboard:
+# 'p' toggles in and out of preview mode
+# 'c' captures an image
+# 't' captures a time lapse sequence
+# 's' moves motor A forwards
+# 'a' moves motor A backwards
+# 'w' moves motor B forwards
+# 'z' moves motor B backwards
+# 'l' low motor speed
+# 'm' medium motor speed
+# 'h' high motor speed
+# left hand  joystick sideways motion - moves motor A backwards and forwards
+# right hand joystick sideways motion - moves motor B backwards and forwards
+
+# Import required libraries
+import RPi.GPIO as GPIO
 import picamera
 from io import BytesIO
-import time
 import datetime
 import pygame
 import sys
@@ -30,10 +49,16 @@ from ps3 import *
 # Import microscoPi settings
 from settings import *
 
+# Use BCM GPIO references (naming convention for GPIO pins from Broadcom)
+# instead of physical pin numbers on the Raspberry Pi board
+GPIO.setmode(GPIO.BCM)
+
 def now():
+    """Get the current date and time"""
     return datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
 
 def toggle_preview(camera):
+    """Toggle on/off the camera preview"""
     # If there is no current preview, start preview
     if camera.preview is None:
         camera.start_preview(
@@ -44,28 +69,24 @@ def toggle_preview(camera):
         camera.stop_preview()
 
 def capture_image(camera):
+    """Capture an image into a stream in JPEG format"""
     # Create byte stream to read image into
     stream = BytesIO()
 
     # Capture the image into the stream
-    start = time.time()
     camera.capture(stream, format='jpeg')
-    end = time.time()
-    print 'capture', end - start
 
     # Return the acquired image stream
     stream.seek(0)
     return stream
 
 def display_image(stream):
+    """Display a captured stream in the pygame window"""
     # Seek to the start of the stream ready for reading
     stream.seek(0)
-    
+
     # Load the image into pygame
-    start = time.time()
     image = pygame.image.load(stream, 'jpeg')
-    end = time.time()
-    print 'pygame load', end - start
 
     # Get the current screen size of the pygame window to
     # correctly resize image
@@ -73,15 +94,90 @@ def display_image(stream):
                    pygame.display.Info().current_h)
 
     # Resize the image to the pygame window size
-    start = time.time()
     image = pygame.transform.scale(image.convert(), screen_size)
-    end = time.time()
-    print 'scale', end - start
 
     # Display the image in the pygame window
     screen.blit(image, (0,0))
 
+
+class Motor:
+    """Motor control"""
+
+    # Control sequence for these specific motors
+    CONTROL_SEQUENCE = [[1,0,0,0],
+                        [1,1,0,0],
+                        [0,1,0,0],
+                        [0,1,1,0],
+                        [0,0,1,0],
+                        [0,0,1,1],
+                        [0,0,0,1],
+                        [1,0,0,1]]
+
+    def __init__(self, pins, wait_time=0.001, step_multiplier=50):
+        """ Construct a Motor with the given pins and defaults"""
+        # The pins that the specific motor is using
+        self.pins = pins
+
+        # Delay between motor steps
+        # Change speed by changing the WAIT_TIME
+        # Appropriate slower times are 0.5 or 0.01
+        self.wait_time = wait_time
+
+        # Number of steps to take per movement operation
+        self.step_multiplier = step_multiplier
+
+        # Setup the pins
+        self.setup()
+
+    # Setup pins
+    def setup(self):
+        """ Setup the pins for use"""
+        for pin in self.pins:
+            GPIO.setup(pin, GPIO.OUT, initial=GPIO.HIGH)
+
+    def off(self):
+        """ Turn the motor off"""
+        for pin in self.pins:
+            GPIO.output(pin, GPIO.LOW)
+
+    # For backwards motion, supply a negative number of steps
+    def move(self, wait_time=None, step_multiplier=None, reverse=False):
+        """ Rotate the motor forwards/backwards"""
+        # Use defaults for wait_time and step_multiplier if not specified
+        if wait_time is None:
+            wait_time = self.wait_time
+        if step_multiplier is None:
+            step_multiplier = self.step_multiplier
+
+        # Adjust control sequence for direction
+        if reverse:
+            # Invert the control sequence list for reverse motion
+            control_sequence = self.CONTROL_SEQUENCE[::-1]
+        else:
+            control_sequence = self.CONTROL_SEQUENCE
+
+        # Move the motor a set number of set steps
+        for i in xrange(step_multiplier):
+            # For each control sequence
+            for control in control_sequence:
+                # For each pin in the list of pin's to be set
+                for pin in xrange(4):
+                    GPIO.output(self.pins[pin], control[pin])
+                # It is necessary to wait after each control sequence
+                # The longer the wait, the slower the movement
+                time.sleep(wait_time)
+
+    def forward(self):
+        """ Move forward at the default speed """
+        self.move()
+
+    def backward(self):
+        """ Move forward at the default speed """
+        self.move(None, None, True)
+
+
 def save_image(stream, name):
+    """ Same image to a specified file """
     if stream is not None:
         open(name, 'wb').write(stream.getvalue())
     else:
@@ -94,6 +190,7 @@ camera = picamera.PiCamera()
 camera.resolution = CAMERA_RESOLUTION
 
 pygame.init()
+pygame.joystick.init() # initialises the joysticks of the ps3 for anolog read
 
 screen = pygame.display.set_mode(WINDOW_SIZE)
 pygame.display.set_caption('Raspberry Pi Camera')
@@ -111,27 +208,65 @@ for j in range(joystick_count):
     joystick = pygame.joystick.Joystick(j)
     joystick.init()
 
+# Setup motors with the specific pins used to control each
+motorA = Motor([17,18,27,22])
+motorB = Motor([23,24,25,04])
+
 # Global for most recently acquired image stream
 timelapsing = False
 
+# Program loop, loops until quit
 while True:
     for event in pygame.event.get():
         if event.type == QUIT:
+            pygaGPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
             pygame.quit()
             sys.exit()
         elif event.type == KEYDOWN:
 
             # 'q' keypress - Quit
             if event.key == K_q:
+                GPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
                 pygame.quit()
                 sys.exit()
 
+            # 's' keypress - motor A forwards
+            elif event.key == K_w:
+                motorA.forward()
+
+            # 'a' keypress - motor A Backwards
+            elif event.key == K_s:
+                motorA.backward()
+
+            # 'z' keypress - motor B forwards
+            elif event.key == K_a:
+                motorB.forward()
+
+            # 'w' keypress - motor B Backwards
+            elif event.key == K_d:
+                motorB.backward()
+
+            # 'h' keypress - Set motors to high speed motion
+            elif event.key == K_h:
+                motorA.step_multiplier = 50
+                motorB.step_multiplier = 50
+
+            # 'm' keypress - Set motors to medium speed motion
+            elif event.key == K_m:
+                motorA.step_multiplier = 20
+                motorB.step_multiplier = 20
+
+            # 'l' keypress - Set motors to low speed motion
+            elif event.key == K_l:
+                motorA.step_multiplier = 1
+                motorB.step_multiplier = 1
+
             # 'p' keypress - Toggle preview on/off
-            elif event.key == K_p:   
+            elif event.key == K_p:
                 toggle_preview(camera)
 
             # 'c' keypress - Capture image
-            elif event.key == K_c:    
+            elif event.key == K_c:
                 image_stream = capture_image(camera)
                 save_image(image_stream, 'image.jpg')
                 display_image(image_stream)
@@ -146,11 +281,11 @@ while True:
                     pygame.time.set_timer(USEREVENT + 1, 0)
 
             # 'i' keypress - Interactive Python Shell
-            elif event.key == K_i:
-                code.interact(local=locals())
+            #elif event.key == K_i:
+            #    code.interact(local=locals())
 
-        elif event.type == pygame.JOYBUTTONDOWN:
-            print 'JoyButtonDown', event.button
+       elif event.type == pygame.JOYBUTTONDOWN:
+            # print 'JoyButtonDown', event.button
             if event.button == DS_START:
                 pygame.quit()
                 sys.exit()
@@ -159,8 +294,45 @@ while True:
 
         # Timelapse event, captured straight to disk
         elif event.type == USEREVENT + 1:
-            stream = capture_image(camera)   
+            stream = capture_image(camera)
             save_image(stream, 'image-%s.jpg' % now())
 
+    # Read and react to joystick movement outside of the event handling
+    j = pygame.joystick.Joystick(0)
+    axis0 = j.get_axis(0)
+    axis1 = j.get_axis(1)
+    axis2 = j.get_axis(2)
+    axis3 = j.get_axis(3)
+
+    # Adjust movement speed based on analogue input and move
+    # the motor in the direction indicated
+    if axis1 != 0:
+        if abs(axis1) > 0.9:
+            wait_time = 0.001
+        elif abs(axis1) > 0.5:
+    	    wait_time = 0.008
+        elif abs(axis1) > 0:
+    	    wait_time = 0.01
+
+        if axis1 > 0:
+    	    motorA.move(wait_time)
+        elif axis1 < 0:
+    	    motorA.move(wait_time, None, True)
+
+    if axis2 != 0:
+        if abs(axis2) > 0.9:
+            wait_time = 0.001
+        elif abs(axis2) > 0.5:
+            wait_time = 0.008
+        elif abs(axis2) > 0:
+            wait_time = 0.06
+
+        if axis2 > 0:
+            motorB.move(wait_time)
+        elif axis2 < 0:
+            motorB.move(wait_time, None, True)
+
     pygame.display.flip()
+
+GPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
 
