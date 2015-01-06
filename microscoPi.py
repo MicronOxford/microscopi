@@ -18,22 +18,6 @@
 #Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #*******************************************************************************
 
-
-#The camera and two motors are controlled from the keyboard and PS3 controller
-#Keys on the keyboard:
-# 'p' toggles in and out of preview mode
-# 'c' captures an image
-# 't' captures a time lapse sequence
-# 's' moves motor A forwards
-# 'a' moves motor A backwards
-# 'w' moves motor B forwards
-# 'z' moves motor B backwards
-# 'l' low motor speed
-# 'm' medium motor speed
-# 'h' high motor speed
-# left hand  joystick sideways motion - moves motor A backwards and forwards
-# right hand joystick sideways motion - moves motor B backwards and forwards
-
 # Import required libraries
 import RPi.GPIO as GPIO
 import picamera
@@ -156,7 +140,7 @@ class Motor:
         else:
             control_sequence = self.CONTROL_SEQUENCE
 
-        # Move the motor a set number of set steps
+        # Move the motor a set number of steps
         for i in xrange(step_multiplier):
             # For each control sequence
             for control in control_sequence:
@@ -183,28 +167,44 @@ def save_image(stream, name):
     else:
         print('No image has been captured yet')
 
+def capture_save_display_image(camera, name):
+    stream = capture_image(camera)
+    save_image(stream, name)
+    display_image(stream)
+
+def quit():
+    """ Quit application """
+    # Cancels all GPIO setups and sets pins to GPIO.LOW
+    pygaGPIO.cleanup()
+
+    # Quit pygame
+    pygame.quit()
+
+    # Terminate program
+    sys.exit()
+
 # Python interface to Raspberry Pi camera module
 camera = picamera.PiCamera()
 
 # Set the camera resolution to maximum for stills acquisition
 camera.resolution = CAMERA_RESOLUTION
 
+# Initialise pygame
 pygame.init()
-pygame.joystick.init() # initialises the joysticks of the ps3 for anolog read
 
+# Set the size of the pygame display window
 screen = pygame.display.set_mode(WINDOW_SIZE)
-pygame.display.set_caption('Raspberry Pi Camera')
+
+# Set the caption of the pygame display window
+pygame.display.set_caption('microscoPi')
 
 # To conserve resources, cap the framerate
 c = pygame.time.Clock()
 c.tick(MAX_FPS)
 
-# Initialize the joysticks
+# Initialise 'joystick' controller(s)
 pygame.joystick.init()
-
-# Ensure there are connected joysticks and init them
-joystick_count = pygame.joystick.get_count()
-for j in range(joystick_count):
+for j in range(pygame.joystick.get_count()):
     joystick = pygame.joystick.Joystick(j)
     joystick.init()
 
@@ -217,18 +217,18 @@ timelapsing = False
 
 # Program loop, loops until quit
 while True:
+    # Handle any events that we are interested in
     for event in pygame.event.get():
+        # Quit event, possibly fired by window controls
         if event.type == QUIT:
-            pygaGPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
-            pygame.quit()
-            sys.exit()
+            quit()
+
+        # Keypress events
         elif event.type == KEYDOWN:
 
             # 'q' keypress - Quit
             if event.key == K_q:
-                GPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
-                pygame.quit()
-                sys.exit()
+                quit()
 
             # 's' keypress - motor A forwards
             elif event.key == K_w:
@@ -267,9 +267,7 @@ while True:
 
             # 'c' keypress - Capture image
             elif event.key == K_c:
-                image_stream = capture_image(camera)
-                save_image(image_stream, 'image.jpg')
-                display_image(image_stream)
+            capture_save_display_image(camera, 'image.jpg')
 
             # 't' keypress - Toggle timelapse
             elif event.key == K_t:
@@ -284,25 +282,29 @@ while True:
             #elif event.key == K_i:
             #    code.interact(local=locals())
 
-       elif event.type == pygame.JOYBUTTONDOWN:
+        #Joystick events
+        elif event.type == pygame.JOYBUTTONDOWN:
             # print 'JoyButtonDown', event.button
+
+            # 'Start' button - Quit
             if event.button == DS_START:
-                pygame.quit()
-                sys.exit()
+                quit()
+
+            # 'Square' button - capture, save and display image
             elif event.button == DS_SQUARE:
-                capture_image(camera)
+                capture_save_display_image(camera, 'image.jpg')
 
         # Timelapse event, captured straight to disk
         elif event.type == USEREVENT + 1:
             stream = capture_image(camera)
             save_image(stream, 'image-%s.jpg' % now())
 
-    # Read and react to joystick movement outside of the event handling
-    j = pygame.joystick.Joystick(0)
-    axis0 = j.get_axis(0)
-    axis1 = j.get_axis(1)
-    axis2 = j.get_axis(2)
-    axis3 = j.get_axis(3)
+    # Read and react to joystick movement outside of the event handler
+    joystick = pygame.joystick.Joystick(0)
+    # axis0 = joystick.get_axis(0)
+    axis1 = joystick.get_axis(1)
+    axis2 = joystick.get_axis(2)
+    # axis3 = joystick.get_axis(3)
 
     # Adjust movement speed based on analogue input and move
     # the motor in the direction indicated
@@ -310,14 +312,14 @@ while True:
         if abs(axis1) > 0.9:
             wait_time = 0.001
         elif abs(axis1) > 0.5:
-    	    wait_time = 0.008
+            wait_time = 0.008
         elif abs(axis1) > 0:
-    	    wait_time = 0.01
+            wait_time = 0.01
 
         if axis1 > 0:
-    	    motorA.move(wait_time)
+            motorA.move(wait_time)
         elif axis1 < 0:
-    	    motorA.move(wait_time, None, True)
+            motorA.move(wait_time, None, True)
 
     if axis2 != 0:
         if abs(axis2) > 0.9:
@@ -333,6 +335,3 @@ while True:
             motorB.move(wait_time, None, True)
 
     pygame.display.flip()
-
-GPIO.cleanup()     # cancells all GPIO setups and turns pin voltages to 0
-
