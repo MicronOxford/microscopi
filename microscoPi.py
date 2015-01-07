@@ -26,6 +26,7 @@ import datetime
 import pygame
 import sys
 from pygame.locals import *
+import time
 
 # Import ps3 constants
 from ps3 import *
@@ -163,7 +164,7 @@ class Motor:
 def save_image(stream, name):
     """ Same image to a specified file """
     if stream is not None:
-        open(STORAGE_DIR + '/' + name, 'wb').write(stream.getvalue())
+        open(name, 'wb').write(stream.getvalue())
     else:
         print('No image has been captured yet')
 
@@ -175,7 +176,7 @@ def capture_save_display_image(camera, name):
 def quit():
     """ Quit application """
     # Cancels all GPIO setups and sets pins to GPIO.LOW
-    pygaGPIO.cleanup()
+    GPIO.cleanup()
 
     # Quit pygame
     pygame.quit()
@@ -267,7 +268,7 @@ while True:
 
             # 'c' keypress - Capture image
             elif event.key == K_c:
-            capture_save_display_image(camera, STORAGE_DIR + '/' + 'image.jpg')
+                capture_save_display_image(camera, STORAGE_DIR + '/' + 'image.jpg')
 
             # 't' keypress - Toggle timelapse
             elif event.key == K_t:
@@ -308,30 +309,18 @@ while True:
 
     # Adjust movement speed based on analogue input and move
     # the motor in the direction indicated
-    if axis0 != 0:
-        if abs(axis0) > 0.9:
-            wait_time = 0.001
-        elif abs(axis0) > 0.5:
-            wait_time = 0.008
-        elif abs(axis0) > 0:
-            wait_time = 0.01
+    if axis0 > 0:
+        motorA.forward()
+    elif axis0 < 0:
+        motorA.backward()
+    else:
+	motorA.off()
 
-        if axis0 > 0:
-            motorA.move(wait_time)
-        elif axis0 < 0:
-            motorA.move(wait_time, None, True)
-
-    if axis2 != 0:
-        if abs(axis2) > 0.9:
-            wait_time = 0.001
-        elif abs(axis2) > 0.5:
-            wait_time = 0.008
-        elif abs(axis2) > 0:
-            wait_time = 0.06
-
-        if axis2 > 0:
-            motorB.move(wait_time)
-        elif axis2 < 0:
-            motorB.move(wait_time, None, True)
+    if axis2 > 0:
+        motorB.forward()
+    elif axis2 < 0:
+        motorB.backward()
+    else:
+	motorB.off()
 
     pygame.display.flip()
