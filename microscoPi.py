@@ -301,24 +301,24 @@ while True:
 
     # Read and react to joystick movement outside of the event handler
     joystick = pygame.joystick.Joystick(0)
-    # axis0 = joystick.get_axis(0)
-    axis1 = joystick.get_axis(1)
+    axis0 = joystick.get_axis(0)
+    # axis1 = joystick.get_axis(1)
     axis2 = joystick.get_axis(2)
     # axis3 = joystick.get_axis(3)
 
     # Adjust movement speed based on analogue input and move
     # the motor in the direction indicated
-    if axis1 != 0:
-        if abs(axis1) > 0.9:
+    if axis0 != 0:
+        if abs(axis0) > 0.9:
             wait_time = 0.001
-        elif abs(axis1) > 0.5:
+        elif abs(axis0) > 0.5:
             wait_time = 0.008
-        elif abs(axis1) > 0:
+        elif abs(axis0) > 0:
             wait_time = 0.01
 
-        if axis1 > 0:
+        if axis0 > 0:
             motorA.move(wait_time)
-        elif axis1 < 0:
+        elif axis0 < 0:
             motorA.move(wait_time, None, True)
 
     if axis2 != 0:
