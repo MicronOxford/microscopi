@@ -163,7 +163,7 @@ class Motor:
 def save_image(stream, name):
     """ Same image to a specified file """
     if stream is not None:
-        open(name, 'wb').write(stream.getvalue())
+        open(STORAGE_DIR + '/' + name, 'wb').write(stream.getvalue())
     else:
         print('No image has been captured yet')
 
@@ -267,7 +267,7 @@ while True:
 
             # 'c' keypress - Capture image
             elif event.key == K_c:
-            capture_save_display_image(camera, 'image.jpg')
+            capture_save_display_image(camera, STORAGE_DIR + '/' + 'image.jpg')
 
             # 't' keypress - Toggle timelapse
             elif event.key == K_t:
@@ -292,12 +292,12 @@ while True:
 
             # 'Square' button - capture, save and display image
             elif event.button == DS_SQUARE:
-                capture_save_display_image(camera, 'image.jpg')
+                capture_save_display_image(camera, STORAGE_DIR + '/' + 'image.jpg')
 
         # Timelapse event, captured straight to disk
         elif event.type == USEREVENT + 1:
             stream = capture_image(camera)
-            save_image(stream, 'image-%s.jpg' % now())
+            save_image(stream, STORAGE_DIR + '/' + 'image-%s.jpg' % now())
 
     # Read and react to joystick movement outside of the event handler
     joystick = pygame.joystick.Joystick(0)

@@ -25,3 +25,5 @@ MAX_FPS = 20
 # this time, then that dictates the pace and will
 # make it difficult to trigger input events
 TIMELAPSE_INTERVAL = 5000
+
+STORAGE_DIR = '/media/PISTORAGE'
