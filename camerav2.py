@@ -6,7 +6,6 @@ import menuv2
 class Camera(object):
 	def __init__(self):
 		pub.subscribe(self.capture,"record")
-		#pub.subscribe(self.brightness ,"brightness") 
 		cam.preview_fullscreen = False
 		cam.preview_window = (10,10, 610, 610)
 		cam.zoom = (0.2, 0.2, 0.6, 0.6)
@@ -31,3 +30,12 @@ def Contrast(val2):
 def Exposure(val):	
 		cam.exposure_compensation = val
 		return val
+
+def WB(val):
+		cam.awb_mode = 'off'
+		cam.awb_gains = (rg, bg)
+		return (val)
+
+#camera.awb_mode = 'off'
+#rg, bg = (0.5, 0.5)
+#camera.awb_gains = (rg, bg)

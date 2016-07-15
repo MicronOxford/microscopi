@@ -6,7 +6,6 @@ Icons made on iDraw (Graphic.app) on mac (in VSG format), saves as .png approx. 
 import wx
 from wx.lib.agw.shapedbutton import SButton, SBitmapButton
 from wx.lib.agw.shapedbutton import SBitmapToggleButton, SBitmapTextToggleButton
-import Settingsv2
 
 class MyForm(wx.Frame):
 #----------------------------------------------------------------------
@@ -137,7 +136,6 @@ class MyForm(wx.Frame):
 				bmpToggleTxtBtn30.Bind(wx.EVT_BUTTON, self.Nothing23)  
     
 				vbox = wx.GridSizer(5,6,3,3)  #Layout the buttons in a 2D array of 5x6 mnimum spacing around each icon of 3x3 pixels
-
 				vbox.Add(bmpToggleTxtBtn1, 0, wx.ALL, wx.CENTER, 5)
 				vbox.Add(bmpToggleTxtBtn2, 0, wx.ALL, wx.CENTER, 5) 
 				vbox.Add(bmpToggleTxtBtn3, 0, wx.ALL, wx.CENTER, 5)
@@ -180,57 +178,40 @@ class MyForm(wx.Frame):
 		def BrightnessAndContrast(self, event):
 				if event.GetIsDown():
 		  				#create new window with sliders for brightness and contrast
-						BandC = Settingsv2.B_and_C()
 		  				print "Brightness and contrast tool is ON"
-						BandC.Show()
 				else:
 		  				print "Brightness and contrast tool is OFF"
-						stop = Settingsv2.Stop()
-						stop.Show()
 						event.Skip()   
 #----------------------------------------------------------------------
 		def Exposure(self, event):
 				if event.GetIsDown():
-		  			    #create new window with sliders for brightness and contrast
-						exposure = Settingsv2.Exposure()
-						print "Exposure tool is ON"
-						exposure.Show()
+		  				#create new window with sliders for brightness and contrast
+						Settings.Exposure()
+		  				print "Exposure tool is ON"
 				else:
 		  				print "Exposure tool is OFF"
-						stop = Settingsv2.Stop()
-						stop.Show()
 						event.Skip()   
 #----------------------------------------------------------------------
 		def Zoom(self, event):
 				if event.GetIsDown():
 		  				#create new window with sliders for zoom
-						zoom = Settingsv2.Zoom()
 		  				print "Zoom tool is ON"
-						zoom.Show()
 				else:
 		  				print "Zoom tool is OFF"
-						stop = Settings.Stop()
-						stop.Show()
 						event.Skip()  
 #----------------------------------------------------------------------
 		def WhiteBalence(self, event):
 				if event.GetIsDown():
 		  				#create new window with sliders for white balence
-						WB = Settingsv2.WhiteBalence()
 		  				print "White balence tool is ON"
-						WB.Show()
 				else:
 		  				print "White balence tool is OFF"
-						stop = Settingsv2.Stop()
-						stop.Show()
 						event.Skip()   
 #----------------------------------------------------------------------
 		def Capture(self, event):
 				if event.GetIsDown():
 		  				print "Image is being captured"
 		  				#capture an image
-						Snap = Settingsv2.Snapshot()
-						Snap.Show()
 				else:
 		  				pass
 						event.Skip()
@@ -239,8 +220,6 @@ class MyForm(wx.Frame):
 				if event.GetIsDown():
 		  				print "Preview is ON"
 		  				#toggle the preview window
-						Prev = Settingsv2.Preview()
-						Prev.Show()
 				else:
 		  				print "Preview is OFF"
 						event.Skip()
@@ -249,11 +228,9 @@ class MyForm(wx.Frame):
 				if event.GetIsDown():
 		  				print "Recording has started"
 		  				#record a video
-						#Rec = Settings.RecordV()
-						#Rec.Show()
 				else:
 		  				print "Recording has stopped"
-						#event.Skip()
+						event.Skip()
 #----------------------------------------------------------------------
 		def Nothing1(self, event):
 				if event.GetIsDown():
