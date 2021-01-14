@@ -1,0 +1,13 @@
+Flask
+Flask-SocketIO
+eventlet
+redis
+rq
+configobj
+Pillow
+imageio
+pyserial
+RPi.GPIO
+ffmpeg
+urllib3
+pigpio
